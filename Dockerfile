@@ -10,8 +10,7 @@ RUN npm ci --only=production
 COPY server.js ./
 COPY index.html ./
 
-EXPOSE 3000
+# Render injects $PORT at runtime; fallback to 3000 locally
+EXPOSE ${PORT:-3000}
 
-# Scores persist in /app/scores.json — mount a volume to keep them across restarts:
-#   docker run -v snake_scores:/app/scores.json ...
 CMD ["node", "server.js"]
