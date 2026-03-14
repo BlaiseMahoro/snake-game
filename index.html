@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multiplayer Snake</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #00e5ff;
+      text-shadow: 0 0 20px #00e5ff88;
+    }
+
+    #layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Canvas wrapper */
+    #canvas-wrap {
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      border: 2px solid #1a1a2e;
+      border-radius: 4px;
+      box-shadow: 0 0 40px #00e5ff22;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0fcc;
+      border-radius: 4px;
+      gap: 16px;
+    }
+
+    #overlay h2 { font-size: 1.8rem; color: #ff4081; text-shadow: 0 0 16px #ff408188; }
+    #overlay p  { color: #aaa; font-size: 0.95rem; }
+
+    #overlay input {
+      padding: 9px 14px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #eee;
+      font-size: 1rem;
+      outline: none;
+      width: 220px;
+      text-align: center;
+    }
+    #overlay input:focus { border-color: #00e5ff; }
+
+    #speed-bar {
+      font-size: 0.75rem;
+      color: #444;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    #speed-bar span { color: #00e5ff; }
+
+    button {
+      padding: 10px 28px;
+      border: 2px solid #00e5ff;
+      background: transparent;
+      color: #00e5ff;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.2s, color 0.2s;
+    }
+    button:hover { background: #00e5ff22; }
+
+    /* Side panel */
+    #panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 200px;
+    }
+
+    #name-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #name-form label { font-size: 0.8rem; color: #888; letter-spacing: 1px; text-transform: uppercase; }
+
+    #name-form input {
+      padding: 8px 10px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #eee;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    #name-form input:focus { border-color: #00e5ff; }
+
+    #scoreboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #scoreboard h2 {
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: #111;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      transition: opacity 0.3s;
+    }
+    .score-row.dead { opacity: 0.4; text-decoration: line-through; }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .score-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .score-val  { font-weight: bold; color: #fff; }
+
+    #leaderboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #leaderboard h2 {
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      background: #111;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .lb-rank { color: #444; width: 18px; text-align: right; flex-shrink: 0; font-size: 0.75rem; }
+    .lb-rank.gold   { color: #ffea00; font-weight: bold; }
+    .lb-rank.silver { color: #aaa;    font-weight: bold; }
+    .lb-rank.bronze { color: #ff6d00; font-weight: bold; }
+    .lb-name  { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ccc; }
+    .lb-score { font-weight: bold; color: #fff; }
+    .lb-date  { font-size: 0.7rem; color: #444; flex-shrink: 0; }
+    .lb-empty { color: #333; font-size: 0.8rem; padding: 4px 10px; }
+
+    #controls {
+      font-size: 0.78rem;
+      color: #444;
+      line-height: 1.8;
+    }
+    #controls span { color: #666; }
+
+    #status {
+      font-size: 0.8rem;
+      color: #555;
+    }
+    #status.connected { color: #76ff03; }
+    #status.disconnected { color: #ff1744; }
+  </style>
+</head>
+<body>
+  <h1>Snake</h1>
+
+  <div id="layout">
+    <div id="canvas-wrap">
+      <canvas id="game"></canvas>
+      <div id="overlay">
+        <h2 id="overlay-title">Connecting...</h2>
+        <p id="overlay-msg"></p>
+        <input id="overlay-name" type="text" maxlength="20" placeholder="Enter your name..." style="display:none" />
+        <button id="overlay-btn" style="display:none">Play</button>
+      </div>
+    </div>
+
+    <div id="panel">
+      <div id="speed-bar">Speed: <span id="speed-val">—</span></div>
+
+      <div id="scoreboard">
+        <h2>Scoreboard</h2>
+      </div>
+
+      <div id="leaderboard">
+        <h2>All-Time Top 10</h2>
+        <div class="lb-empty">No scores yet</div>
+      </div>
+
+      <div id="controls">
+        <b>Controls</b><br>
+        <span>W / Arrow Up</span> — Up<br>
+        <span>S / Arrow Down</span> — Down<br>
+        <span>A / Arrow Left</span> — Left<br>
+        <span>D / Arrow Right</span> — Right<br>
+      </div>
+
+      <div id="status" class="disconnected">Disconnected</div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    // ── Canvas setup ──────────────────────────────────────────────────────────
+    const canvas = document.getElementById('game');
+    const ctx    = canvas.getContext('2d');
+    let GRID = 25;
+    let CELL = 20;
+
+    function resizeCanvas() {
+      canvas.width  = GRID * CELL;
+      canvas.height = GRID * CELL;
+    }
+    resizeCanvas();
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let myId      = null;
+    let players   = {};
+    let food      = [];
+    let ws        = null;
+    let lbEntries = [];
+    let nameSet   = false;   // true once the player has entered a name
+
+    // ── Overlay helpers ───────────────────────────────────────────────────────
+    const overlay   = document.getElementById('overlay');
+    const oTitle    = document.getElementById('overlay-title');
+    const oMsg      = document.getElementById('overlay-msg');
+    const oNameInput = document.getElementById('overlay-name');
+    const oBtn      = document.getElementById('overlay-btn');
+    const statusEl  = document.getElementById('status');
+
+    function showOverlay(title, msg, { showName = false, btnLabel = null } = {}) {
+      overlay.style.display  = 'flex';
+      oTitle.textContent     = title;
+      oMsg.textContent       = msg;
+      oNameInput.style.display = showName ? '' : 'none';
+      if (showName) oNameInput.focus();
+      oBtn.style.display   = btnLabel ? '' : 'none';
+      oBtn.textContent     = btnLabel ?? 'Play';
+    }
+    function hideOverlay() { overlay.style.display = 'none'; }
+
+    function submitName() {
+      const name = oNameInput.value.trim();
+      if (name) send({ type: 'rename', name });
+      nameSet = true;
+      hideOverlay();
+    }
+
+    oBtn.addEventListener('click', () => {
+      if (!nameSet) {
+        submitName();
+      } else {
+        // Play Again after death
+        send({ type: 'respawn' });
+        showOverlay('Respawning...', '');
+      }
+    });
+
+    oNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submitName(); }
+    });
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}`);
+
+      ws.addEventListener('open', () => {
+        statusEl.textContent = 'Connected';
+        statusEl.className   = 'connected';
+        showOverlay('Enter your name', 'You can leave it blank to stay anonymous', { showName: true, btnLabel: 'Play' });
+      });
+
+      ws.addEventListener('close', () => {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className   = 'disconnected';
+        showOverlay('Disconnected', 'Reconnecting in 2 s...');
+        setTimeout(connect, 2000);
+      });
+
+      ws.addEventListener('message', ({ data }) => {
+        let msg;
+        try { msg = JSON.parse(data); } catch { return; }
+        handleMessage(msg);
+      });
+    }
+
+    function send(obj) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(obj));
+      }
+    }
+
+    // ── Message handler ───────────────────────────────────────────────────────
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'init':
+          myId  = msg.playerId;
+          GRID  = msg.gridSize;
+          resizeCanvas();
+          msg.players.forEach(p => { players[p.id] = p; });
+          food = msg.food;
+          if (msg.leaderboard) { lbEntries = msg.leaderboard; updateLeaderboard(); }
+          // Don't hide overlay here — wait for the player to submit their name
+          break;
+
+        case 'state':
+          msg.players.forEach(p => { players[p.id] = p; });
+          food = msg.food;
+          if (msg.tickMs) updateSpeedBar(msg.tickMs);
+          if (nameSet && myId && players[myId] && !players[myId].alive) {
+            showOverlay('You Died!', `Score: ${players[myId].score}`, { btnLabel: 'Play Again' });
+          }
+          updateScoreboard();
+          draw();
+          break;
+
+        case 'leaderboard':
+          lbEntries = msg.entries;
+          updateLeaderboard();
+          break;
+
+        case 'left':
+          delete players[msg.id];
+          updateScoreboard();
+          break;
+
+        case 'rename':
+          if (players[msg.id]) players[msg.id].name = msg.name;
+          updateScoreboard();
+          break;
+      }
+    }
+
+    // ── Drawing ───────────────────────────────────────────────────────────────
+    function draw() {
+      // Background
+      ctx.fillStyle = '#0d0d14';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid lines (subtle)
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= GRID; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * CELL); ctx.lineTo(canvas.width, i * CELL);
+        ctx.stroke();
+      }
+
+      // Food
+      food.forEach(f => {
+        const x = f.x * CELL + CELL / 2;
+        const y = f.y * CELL + CELL / 2;
+        const r = CELL / 2 - 3;
+
+        ctx.save();
+        ctx.shadowColor = '#ff4081';
+        ctx.shadowBlur  = 12;
+        ctx.fillStyle   = '#ff4081';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Snakes
+      for (const p of Object.values(players)) {
+        if (!p.snake || p.snake.length === 0) continue;
+        const alpha = p.alive ? 1 : 0.3;
+
+        p.snake.forEach((seg, i) => {
+          const isHead = i === 0;
+          const margin = isHead ? 1 : 2;
+          const size   = CELL - margin * 2;
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+
+          if (isHead) {
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur  = 14;
+          }
+
+          ctx.fillStyle = isHead ? p.color : p.color + 'bb';
+          ctx.beginPath();
+          ctx.roundRect(
+            seg.x * CELL + margin,
+            seg.y * CELL + margin,
+            size, size,
+            isHead ? 4 : 2
+          );
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // Name tag above head
+        if (p.alive && p.snake.length > 0) {
+          const head = p.snake[0];
+          ctx.save();
+          ctx.font         = 'bold 10px sans-serif';
+          ctx.fillStyle    = p.color;
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.shadowColor  = '#000';
+          ctx.shadowBlur   = 4;
+          const label = p.id === myId ? `${p.name} (you)` : p.name;
+          ctx.fillText(label, head.x * CELL + CELL / 2, head.y * CELL - 2);
+          ctx.restore();
+        }
+      }
+    }
+
+    // ── Scoreboard ────────────────────────────────────────────────────────────
+    function updateScoreboard() {
+      const board = document.getElementById('scoreboard');
+      // Keep header
+      const header = board.querySelector('h2');
+      board.innerHTML = '';
+      board.appendChild(header);
+
+      const sorted = Object.values(players).sort((a, b) => b.score - a.score);
+      sorted.forEach(p => {
+        const row = document.createElement('div');
+        row.className = `score-row${p.alive ? '' : ' dead'}`;
+        row.innerHTML = `
+          <div class="dot" style="background:${p.color}"></div>
+          <div class="score-name">${p.id === myId ? `${p.name} (you)` : p.name}</div>
+          <div class="score-val">${p.score}</div>
+        `;
+        board.appendChild(row);
+      });
+    }
+
+    // ── Leaderboard ───────────────────────────────────────────────────────────
+    function updateLeaderboard() {
+      const board = document.getElementById('leaderboard');
+      const header = board.querySelector('h2');
+      board.innerHTML = '';
+      board.appendChild(header);
+
+      if (!lbEntries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'lb-empty';
+        empty.textContent = 'No scores yet';
+        board.appendChild(empty);
+        return;
+      }
+
+      const rankLabels = ['1st', '2nd', '3rd'];
+      const rankClasses = ['gold', 'silver', 'bronze'];
+
+      lbEntries.forEach((entry, i) => {
+        const d = new Date(entry.date);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+        const rankClass = i < 3 ? rankClasses[i] : '';
+        const rankText  = i < 3 ? rankLabels[i] : `${i+1}th`;
+        const row = document.createElement('div');
+        row.className = 'lb-row';
+        row.innerHTML = `
+          <div class="lb-rank ${rankClass}">${rankText}</div>
+          <div class="lb-name">${entry.name}</div>
+          <div class="lb-score">${entry.score}</div>
+          <div class="lb-date">${dateStr}</div>
+        `;
+        board.appendChild(row);
+      });
+    }
+
+    // ── Speed bar ─────────────────────────────────────────────────────────────
+    function updateSpeedBar(tickMs) {
+      // 200ms = level 1, 70ms = level ~17 — show as filled dots
+      const MAX_MS = 200, MIN_MS = 70, DOTS = 10;
+      const level  = Math.round((MAX_MS - tickMs) / (MAX_MS - MIN_MS) * DOTS);
+      const filled = Math.min(level, DOTS);
+      document.getElementById('speed-val').textContent =
+        '●'.repeat(filled) + '○'.repeat(DOTS - filled);
+    }
+
+    // ── Keyboard input ────────────────────────────────────────────────────────
+    const KEY_MAP = {
+      ArrowUp:    { x:  0, y: -1 },
+      ArrowDown:  { x:  0, y:  1 },
+      ArrowLeft:  { x: -1, y:  0 },
+      ArrowRight: { x:  1, y:  0 },
+      w: { x:  0, y: -1 },
+      s: { x:  0, y:  1 },
+      a: { x: -1, y:  0 },
+      d: { x:  1, y:  0 },
+      W: { x:  0, y: -1 },
+      S: { x:  0, y:  1 },
+      A: { x: -1, y:  0 },
+      D: { x:  1, y:  0 },
+    };
+
+    document.addEventListener('keydown', (e) => {
+      // Don't steal keys when the user is typing in an input
+      if (document.activeElement.tagName === 'INPUT') return;
+      const dir = KEY_MAP[e.key];
+      if (dir) {
+        e.preventDefault();
+        send({ type: 'direction', direction: dir });
+      }
+    });
+
+    // Touch/swipe support for mobile
+    let touchStart = null;
+    canvas.addEventListener('touchstart', e => {
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, { passive: true });
+    canvas.addEventListener('touchend', e => {
+      if (!touchStart) return;
+      const dx = e.changedTouches[0].clientX - touchStart.x;
+      const dy = e.changedTouches[0].clientY - touchStart.y;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        send({ type: 'direction', direction: { x: dx > 0 ? 1 : -1, y: 0 } });
+      } else {
+        send({ type: 'direction', direction: { x: 0, y: dy > 0 ? 1 : -1 } });
+      }
+      touchStart = null;
+    }, { passive: true });
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    showOverlay('Connecting...', 'Please wait');
+    connect();
+  })();
+  </script>
+</body>
+</html>

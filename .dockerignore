@@ -1,0 +1,4 @@
+node_modules
+scores.json
+*.log
+.git
