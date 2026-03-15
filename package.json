@@ -8,6 +8,7 @@
     "test": "node --test game.test.js"
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
     "ws": "^8.18.0"
   }
 }

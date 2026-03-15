@@ -5,32 +5,21 @@ const fs   = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const { fillFood, createPlayer, recordScore, tickPlayers, computeTickMs } = require('./game');
+const db = require('./db');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const PORT        = process.env.PORT || 3000;
-const GRID_SIZE   = 25;
-const MAX_FOOD    = 5;
-const TOP_N       = 10;
-const SCORES_FILE = path.join(__dirname, 'scores.json');
+const PORT      = process.env.PORT || 3000;
+const GRID_SIZE = 25;
+const MAX_FOOD  = 5;
+const TOP_N     = 10;
 
 const PLAYER_COLORS = [
   '#00e5ff', '#ff4081', '#76ff03', '#ffea00',
   '#ff6d00', '#d500f9', '#1de9b6', '#ff1744',
 ];
 
-// ─── Persistent leaderboard ───────────────────────────────────────────────────
+// ─── Leaderboard (in-memory, synced from DB on start) ────────────────────────
 let leaderboard = [];
-
-function loadLeaderboard() {
-  try { leaderboard = JSON.parse(fs.readFileSync(SCORES_FILE, 'utf8')); }
-  catch { leaderboard = []; }
-}
-
-function saveLeaderboard(board) {
-  fs.writeFileSync(SCORES_FILE, JSON.stringify(board, null, 2));
-}
-
-loadLeaderboard();
 
 // ─── HTTP server (serves index.html) ─────────────────────────────────────────
 const httpServer = http.createServer((req, res) => {
@@ -64,12 +53,22 @@ function tick() {
 
   const { newlyDead, foodEaten } = tickPlayers(playerList, food, GRID_SIZE, MAX_FOOD);
 
-  let leaderboardUpdated = false;
-  for (const p of newlyDead) {
-    const { leaderboard: updated, updated: changed } = recordScore(leaderboard, p.name, p.score, TOP_N);
-    if (changed) { leaderboard = updated; leaderboardUpdated = true; }
+  // Persist deaths and refresh leaderboard
+  const deathsWithScore = newlyDead.filter(p => p.score > 0);
+  if (deathsWithScore.length > 0) {
+    let updated = false;
+    for (const p of deathsWithScore) {
+      if (db.connected()) {
+        db.insertScore(p.name, p.score);
+        leaderboard = db.getTopScores(TOP_N);
+        updated = true;
+      } else {
+        const { leaderboard: next, updated: changed } = recordScore(leaderboard, p.name, p.score, TOP_N);
+        if (changed) { leaderboard = next; updated = true; }
+      }
+    }
+    if (updated) broadcast({ type: 'leaderboard', entries: leaderboard });
   }
-  if (leaderboardUpdated) saveLeaderboard(leaderboard);
 
   // Speed up when food is eaten
   if (foodEaten > 0) {
@@ -170,6 +169,10 @@ wss.on('connection', (ws) => {
     if (players.size === 0) stopLoop();
   });
 });
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+db.init();
+leaderboard = db.getTopScores(TOP_N);
 
 httpServer.listen(PORT, () => {
   console.log(`Snake game running at http://localhost:${PORT}`);
