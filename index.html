@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Multiplayer Snake</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d0d14'/%3E%3Crect x='3' y='15' width='7' height='7' rx='2' fill='%2376ff03'/%3E%3Crect x='11' y='15' width='7' height='7' rx='2' fill='%2376ff03'/%3E%3Crect x='11' y='7' width='7' height='7' rx='2' fill='%2376ff03'/%3E%3Crect x='19' y='7' width='10' height='10' rx='3' fill='%2300e5ff'/%3E%3Ccircle cx='26' cy='10' r='1.5' fill='%230d0d14'/%3E%3C/svg%3E" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -207,7 +208,16 @@
   </style>
 </head>
 <body>
-  <h1>Snake</h1>
+  <h1>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="36" height="36" style="vertical-align:middle;margin-right:10px">
+      <rect width="32" height="32" rx="6" fill="#0d0d14"/>
+      <rect x="3"  y="15" width="7"  height="7"  rx="2" fill="#76ff03"/>
+      <rect x="11" y="15" width="7"  height="7"  rx="2" fill="#76ff03"/>
+      <rect x="11" y="7"  width="7"  height="7"  rx="2" fill="#76ff03"/>
+      <rect x="19" y="7"  width="10" height="10" rx="3" fill="#00e5ff"/>
+      <circle cx="26" cy="10" r="1.5" fill="#0d0d14"/>
+    </svg>Snake
+  </h1>
 
   <div id="layout">
     <div id="canvas-wrap">
