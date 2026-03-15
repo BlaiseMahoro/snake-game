@@ -81,7 +81,6 @@ function tick() {
   }
 
   broadcast({ type: 'state', players: serializePlayers(), food, tickMs: currentTickMs });
-  if (leaderboardUpdated) broadcast({ type: 'leaderboard', entries: leaderboard });
 }
 
 function serializePlayers() {
